@@ -19,7 +19,7 @@ This plugin allows the player to mute any individual player.
 - `sm_selfmute_spam_mutes` `4.0` - *_How many mutes a client needs to get listed as spammer (1.0 - 64.0)._*
 
 ## Download
-### [Download (smx)](https://github.com/IT-KiLLER/CS-GO-Self-Mute-Intelligence/raw/master/SelfMute.smx)    [Source code (zip)](https://github.com/IT-KiLLER/CS-GO-Self-Mute-Intelligence/archive/master.zip)
+### [Download (smx)](https://github.com/IT-KiLLER/CSGO-Self-Mute-Intelligence/raw/master/SelfMute.smx)    [Source code (zip)](https://github.com/IT-KiLLER/CSGO-Self-Mute-Intelligence/archive/master.zip)
 Please feel free to contact me if you have any questions. [contact information here.](https://github.com/IT-KiLLER/HOW-TO-CONTACT-ME)
 
 There will probably be another update, after a test. Stay tuned.
