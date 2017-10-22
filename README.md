@@ -1,6 +1,6 @@
 # [CS:GO] Self-Mute Intelligence 1.5
 This plugin allows the player to mute any individual player.
-## What has been improved is:  
+## What has been improved/added is:  
 - Lists players who have just spoken.
 - Lists players who have a lot of mutes.
 - Excludes those already muted by the client. 
