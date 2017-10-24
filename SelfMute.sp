@@ -17,8 +17,8 @@
 #include <sdktools>
 #include <adminmenu>
 #include <colors_csgo>
-#undef REQUIRE_EXTENSIONS
 #include <voiceannounce_ex>
+#define BOTS true // debug bots
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -27,26 +27,31 @@ bool MuteStatus[MAXPLAYERS+1][MAXPLAYERS+1];
 char clientNames[MAXPLAYERS+1][MAX_NAME_LENGTH];
 
 float clientTalkTime[MAXPLAYERS+1] = { 0.0, ... };
-ConVar sm_selfmute_admin, sm_selfmute_talk_seconds, sm_selfmute_spam_mutes;
+ConVar sm_selfmute_admin, sm_selfmute_talk_seconds, sm_selfmute_spam_mutes, sv_alltalk, sv_full_alltalk;
 
 public Plugin myinfo = 
 {
 	name = "Self-Mute Intelligence",
 	author = "Otokiru, edit 93x, Accelerator, IT-KiLLER",
 	description = "Mute player just for you.",
-	version = "1.5",
+	version = "1.5.1",
 	url = "https://github.com/IT-KiLLER"
 }
 
 public void OnPluginStart() 
 {   
 	LoadTranslations("common.phrases");
-	CreateConVar("sm_selfmute_version", "1.5", "Version of Self-Mute", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	RegConsoleCmd("sm_sm", selfMute, "Mute player by typing !selfmute <name>");
 	RegConsoleCmd("sm_su", selfUnmute, "Unmute player by typing !su <name>");
 	sm_selfmute_admin = CreateConVar("sm_selfmute_admin", "0.0", "Admin can not be muted. Disabled by default", _, true, 0.0, true, 1.0);
 	sm_selfmute_talk_seconds = CreateConVar("sm_selfmute_talk_seconds", "45.0", "List clients who have recently spoken within x secounds", _, true, 1.0, true, 180.0);
 	sm_selfmute_spam_mutes = CreateConVar("sm_selfmute_spam_mutes", "4.0", "How many mutes a client needs to get listed as spammer.", _, true, 1.0, true, 64.0);
+}
+
+public void OnAllPluginsLoaded()
+{
+	sv_alltalk = FindConVar("sv_alltalk");
+	sv_full_alltalk = FindConVar("sv_full_alltalk");
 }
 
 public void OnMapStart()
@@ -67,7 +72,7 @@ public void OnClientDisconnect_Post(int client)
 		{
 			if (MuteStatus[id][client])
 			{
-				SetListenOverride(id, client, Listen_No);
+				SetListenOverride(id, client, Listen_Default);
 			}
 		}
 	}
@@ -108,7 +113,7 @@ public Action selfMute(int client, int args)
 	int TargetList[MAXPLAYERS], TargetCount; 
 	bool TargetTranslate; 
 	
-	if ((TargetCount = ProcessTargetString(strTarget,0, TargetList, MAXPLAYERS, COMMAND_FILTER_CONNECTED/*|COMMAND_FILTER_NO_BOTS*/, 
+	if ((TargetCount = ProcessTargetString(strTarget,0, TargetList, MAXPLAYERS, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS, 
 	strTargetName, sizeof(strTargetName), TargetTranslate)) <= 0) 
 	{
 		ReplyToTargetError(client, TargetCount); 
@@ -143,6 +148,14 @@ stock void DisplayMuteMenu(int client)
 	int myindex = 0;
 	int temp = 0;
 
+	for (int target = 1; target <= MaxClients; target++)
+	{	
+		if(IsClientInGame(target) ? (!VoiceTeam(client, target) || BOTS && IsFakeClient(target)) : false) 
+		{
+			clientAlreadyListed[target] = true; // BOT or not in voiceteam
+		}
+	}
+
 	// Sorts who have recently spoken 
 	do {
 		loop=false;
@@ -163,7 +176,7 @@ stock void DisplayMuteMenu(int client)
 	for(int i = 0; i <= MaxClients; i++)
 	{
 		int target = clientSortRecentlyTalked[i];
-		if(target != 0 && (IsClientInGame(target) && !clientAlreadyListed[target] && !MuteStatus[client][target] && (clientTalkTime[target]+sm_selfmute_talk_seconds.FloatValue) > gametime))
+		if(target != 0 && (IsClientInGame(target) && !clientAlreadyListed[target] && !MuteStatus[client][target] && clientTalkTime[target]!=0 && (clientTalkTime[target]+sm_selfmute_talk_seconds.FloatValue) > gametime))
 		{
 			clientAlreadyListed[target] = true;
 			IntToString(GetClientUserId(target), strClientID, sizeof(strClientID));
@@ -177,7 +190,7 @@ stock void DisplayMuteMenu(int client)
 		}
 	}
 
-	loop = true;
+	//loop = true;
 
 	// Provides suggestions for clients to mute based on other clients choices.
 	for(int target = 1; target <= MaxClients; target++)
@@ -265,14 +278,21 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 	if(TargetCount==1)
 	{
 		int target = list[0];
-		if(client == target){
+		if(client == target)
+		{
 			CPrintToChat(client, "{green}[SM]{red} You can not mute yourself.");
 			return;
 		}
-		if(sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) {
-			CPrintToChat(client, "{green}[SM]{red} You can not mute an admin: {lightblue} %N", target);
+		if(sm_selfmute_admin.BoolValue && IsPlayerAdmin(target))
+		{
+			CPrintToChat(client, "{green}[SM]{red} You can not mute an admin: {lightblue}%N", target);
 			return;
-		}   
+		}
+		if(!VoiceTeam(client, target) || BOTS && IsFakeClient(target))
+		{
+			CPrintToChat(client, "{green}[SM]{red} The client could not be muted: {lightblue}%N", target);
+			return;
+		}
 		SetListenOverride(client, target, Listen_No);
 		CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted: %N", target);
 		MuteStatus[client][target] = true;
@@ -284,8 +304,8 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 		int textSize = 0, countTargets = 0;
 
 		for (int target = 0; target < TargetCount; target++) 
-		{
-			if(list[target] == client || MuteStatus[client][list[target]] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(list[target]))) continue;
+		{	
+			if(list[target] == client || MuteStatus[client][list[target]] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(list[target])) || !VoiceTeam(client, list[target]) || BOTS && IsFakeClient(list[target])) continue;
 			countTargets++;
 			MuteStatus[client][list[target]] = true;
 			SetListenOverride(client, list[target], Listen_No);
@@ -295,7 +315,8 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 		if(countTargets>0) 
 		{
 			CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted(%d){green}: %s", countTargets , (textSize <= sizeof(textNames) && countTargets <= 14 ) ? textNames : getFilterName(filtername));
-		} else
+		}
+		else
 		{
 			CPrintToChat(client, "{green}[SM]{lightgreen} Everyone in the list was already muted.");
 		}
@@ -307,15 +328,17 @@ public void unMuteTargetedPlayers(int client, int[] list, int TargetCount, const
 	if(TargetCount==1)
 	{
 		int target = list[0];
-		if(client == target){
+		if(client == target)
+		{
 			CPrintToChat(client, "{green}[SM]{red} You can not unmute yourself.");
 			return;
 		}
-		if(sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) {
+		if(sm_selfmute_admin.BoolValue && IsPlayerAdmin(target))
+		{
 			CPrintToChat(client, "{green}[SM]{red} You can not unmute an admin: %N", target);
 			return;
 		}
-		SetListenOverride(client, target, Listen_Yes);
+		SetListenOverride(client, target, Listen_Default);
 		CPrintToChat(client, "{green}[SM]{lightgreen} You have self-unmuted: %N", target);
 		MuteStatus[client][target] = false;
 
@@ -328,7 +351,7 @@ public void unMuteTargetedPlayers(int client, int[] list, int TargetCount, const
 		{
 			if(list[target] == client || !MuteStatus[client][list[target]] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(list[target])) ) continue;
 			countTargets++;
-			SetListenOverride(client, list[target], Listen_Yes);
+			SetListenOverride(client, list[target], Listen_Default);
 			MuteStatus[client][list[target]] = false;
 			FormatEx(textNames, sizeof(textNames), "%s%s%N", textNames, countTargets==1 ? "" : ", ",  list[target]);
 			textSize = strlen(textNames) - textSize;
@@ -370,7 +393,7 @@ public Action selfUnmute(int client, int args)
 		return Plugin_Handled; 
 	}
 
-	if ((TargetCount = ProcessTargetString(strTarget, 0, TargetList, MAXPLAYERS, COMMAND_FILTER_CONNECTED, strTargetName, sizeof(strTargetName), TargetTranslate)) <= 0) 
+	if ((TargetCount = ProcessTargetString(strTarget, 0, TargetList, MAXPLAYERS, COMMAND_FILTER_CONNECTED | COMMAND_FILTER_NO_BOTS, strTargetName, sizeof(strTargetName), TargetTranslate)) <= 0) 
 	{
 		ReplyToTargetError(client, TargetCount); 
 		return Plugin_Handled; 
@@ -396,6 +419,7 @@ stock void DisplayUnMuteMenu(int client)
 			menu.AddItem(strClientID, strClientName);
 		}
 	}
+
 	if(menu.ItemCount==0) 
 	{
 		CPrintToChat(client, "{green}[SM]{lightgreen} No players are muted.");
@@ -447,7 +471,16 @@ stock bool IsPlayerAdmin(int client)
 		return true;
 	}
 	return false;
-}  
+}
+
+stock bool VoiceTeam(int client, int target)
+{
+	if ((!sv_full_alltalk.BoolValue || !sv_alltalk.BoolValue) && GetClientTeam(client) == GetClientTeam(target))
+	{
+		return true;
+	}
+	return false;
+}
 
 stock int SortByPlayerName(int player1, int player2, const int[] array, Handle hndl)
 {
