@@ -343,7 +343,7 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 		for (int i = 0; i < TargetCount; i++) 
 		{	
 			target = list[i];
-			if (target == client || MuteStatus[client][target] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) || !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) continue;
+			if (target == client || MuteStatus[client][target] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) || !sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) continue;
 			countTargets++;
 			MuteStatus[client][target] = true;
 			SetListenOverride(client, target, Listen_No);
