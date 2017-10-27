@@ -1,4 +1,4 @@
-# [CS:GO] Self-Mute Intelligence 1.5.1
+# [CS:GO] Self-Mute Intelligence 1.5.2
 This plugin allows the player to mute any individual player.
 ## What has been improved/added is:  
 - Lists players who have just spoken.
@@ -9,7 +9,7 @@ This plugin allows the player to mute any individual player.
 - Those who get muted/unmuted are printed better if it goes.
 - !cm (checkmutes) is removed. A better !su replaces this.
 - Alltalk is not a problem anymore. **(NEW v1.5.1)**
-- The menu will only contain team members if `sv_full_alltalk` or `sv_alltalk` is set to `0`. **(NEW v1.5.1)**
+- The menu will only contain team members if `sv_full_alltalk` is set to `0`. **(NEW v1.5.1)**
 - And more...
 
 ## Upcoming features
@@ -31,6 +31,10 @@ Please feel free to contact me if you have any questions. [contact information h
 There will probably be another update, after a test. Stay tuned. (2017-10-24)
 
 ## Change log
+- **1.5.2** - 2017-10-27
+  - Bots filter temporarily disabled.
+  - Unnecessary cvar (`sv_alltalk`) removed.
+  - Other changes.
 - **1.5.1** - 2017-10-24
   - Excludes bots.
   - Alltalk issue solved!
