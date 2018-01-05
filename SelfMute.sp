@@ -27,8 +27,8 @@ bool MuteStatus[MAXPLAYERS+1][MAXPLAYERS+1];
 char clientNames[MAXPLAYERS+1][MAX_NAME_LENGTH];
 
 float clientTalkTime[MAXPLAYERS+1] = { 0.0, ... };
-ConVar sm_selfmute_admin, sm_selfmute_talk_seconds, sm_selfmute_spam_mutes, sv_full_alltalk;
-bool LibraryError, CSGO;
+ConVar sm_selfmute_admin, sm_selfmute_talk_seconds, sm_selfmute_spam_mutes, sv_full_alltalk, sv_alltalk;
+bool LibraryError, CSGO, CSS;
 
 public Plugin myinfo = 
 {
@@ -43,7 +43,10 @@ public void OnPluginStart()
 {   
 	LoadTranslations("common.phrases");
 	RegConsoleCmd("sm_sm", selfMute, "Mute player by typing !selfmute <name>");
+	RegConsoleCmd("sm_selfmute", selfMute, "Mute player by typing !selfmute <name>");
 	RegConsoleCmd("sm_su", selfUnmute, "Unmute player by typing !su <name>");
+	RegConsoleCmd("sm_selfunmute", selfUnmute, "unMute player by typing !selfunmute<name>");
+	
 	sm_selfmute_admin = CreateConVar("sm_selfmute_admin", "0.0", "Admin can not be muted. Disabled by default", _, true, 0.0, true, 1.0);
 	sm_selfmute_talk_seconds = CreateConVar("sm_selfmute_talk_seconds", "45.0", "List clients who have recently spoken within x secounds", _, true, 1.0, true, 180.0);
 	sm_selfmute_spam_mutes = CreateConVar("sm_selfmute_spam_mutes", "4.0", "How many mutes a client needs to get listed as spammer.", _, true, 1.0, true, 64.0);
@@ -51,7 +54,6 @@ public void OnPluginStart()
 
 public void OnAllPluginsLoaded()
 {
-	sv_full_alltalk = FindConVar("sv_full_alltalk");
 
 	// Checking the libraries
 	if ((LibraryError = !LibraryExists("voiceannounce_ex")))
@@ -62,11 +64,18 @@ public void OnAllPluginsLoaded()
 	{
 		SetFailState("An error has occurred with 'dhooks'. The plugin is disabled.");
 	}
-
+	
 	if ((CSGO = (GetEngineVersion() == Engine_CSGO))) 
-	{
-		//  IT'S A CS GO SERVER
-	}
+ 	{
+ 		sv_full_alltalk = FindConVar("sv_full_alltalk");
+ 		
+ 	}
+ 	
+ 	if ((CSS = (GetEngineVersion() == Engine_CSS))) 
+ 	{
+ 		sv_alltalk = FindConVar("sv_alltalk"); //[SM] Exception reported: Invalid convar handle 0 (error 4) if using sv_full_alltalk on c:ss and stops plugin
+ 		                                     
+ 	}
 }
 
 public void OnPluginEnd()
@@ -111,13 +120,13 @@ public void OnClientPutInServer(int client)
 	}
 }
 
-public void OnClientSpeakingEx(int client)
+public int OnClientSpeakingEx(int client) // on SPEdit it says this error when using public void "function return type differs from prototype. expected 'int', but got 'void'"
 {
 	if (GetClientListeningFlags(client) == VOICE_MUTED) return;
 	clientTalkTime[client] = GetGameTime();
 }
 
-public void OnClientSpeakingEnd(int client)
+public int OnClientSpeakingEnd(int client)
 {
 	if (GetClientListeningFlags(client) == VOICE_MUTED) return;
 	clientTalkTime[client] = GetGameTime();
@@ -188,10 +197,20 @@ stock void DisplayMuteMenu(int client)
 
 	for (int target = 1; target <= MaxClients; target++)
 	{	
-		if (IsClientInGame(target) ? (!sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) : false) 
+		if (CSGO)
+		{
+		if (IsClientInGame(target) ? (!sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) : false) 
 		{
 			clientAlreadyListed[target] = true; // BOT or not in voiceteam
 		}
+		if (CSS)
+		{
+		if (IsClientInGame(target) ? (!sv_alltalk.FloatValue && !VoiceTeam(client, target) || !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) : false)
+		{
+	     	clientAlreadyListed[target] = true;
+		}
+	}
+}
 	}
 
 	// Sorts who have recently spoken 
@@ -311,6 +330,8 @@ public int MenuHandler_MuteMenu(Menu menu, MenuAction action, int param1, int pa
 
 public void muteTargetedPlayers(int client, int[] list, int TargetCount, const char[] filtername)
 {
+	if (CSGO)
+	{
 	if (TargetCount == 1)
 	{
 		int target = list[0];
@@ -350,6 +371,8 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 			FormatEx(textNames, sizeof(textNames), "%s%s%N", textNames, countTargets==1 ? "" : ", ",  target);
 			textSize = strlen(textNames) - textSize;
 		}
+		
+	
 		if (countTargets > 0) 
 		{
 			CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted(%d){green}: %s", countTargets , (textSize <= sizeof(textNames) && countTargets <= 14 ) ? textNames : getFilterName(filtername));
@@ -359,7 +382,62 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 			CPrintToChat(client, "{green}[SM]{lightgreen} Everyone in the list was already muted.");
 		}
 	}
+	
+	if (CSS)
+	
+	if (TargetCount == 1)
+	{
+		int target = list[0];
+		if (client == target)
+		{
+			CPrintToChat(client, "{green}[SM]{red} You can not mute yourself.");
+			return;
+		}
+		if (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target))
+		{
+			CPrintToChat(client, "{green}[SM]{red} You can not mute an admin: {lightblue}%N", target);
+			return;
+		}
+		if (VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) 
+		{
+			CPrintToChat(client, "{green}[SM]{red} The client could not be muted: {lightblue}%N", target);
+			return;
+		}
+		SetListenOverride(client, target, Listen_No);
+ 
+		CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted: %N", target);
+		MuteStatus[client][target] = true;
+
+	} 
+	else if (TargetCount > 1)
+	{
+		char textNames[250];
+		int textSize = 0, countTargets = 0;
+		int target;
+		for (int i = 0; i < TargetCount; i++) 
+		{	
+			target = list[i];
+			if (target == client || MuteStatus[client][target] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) || !sv_alltalk.FloatValue && !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) continue;
+			countTargets++;
+			MuteStatus[client][target] = true;
+			SetListenOverride(client, target, Listen_No);
+			FormatEx(textNames, sizeof(textNames), "%s%s%N", textNames, countTargets==1 ? "" : ", ",  target);
+			textSize = strlen(textNames) - textSize;
+		}
+		
+	
+		if (countTargets > 0) 
+		{
+			CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted(%d){green}: %s", countTargets , (textSize <= sizeof(textNames) && countTargets <= 14 ) ? textNames : getFilterName(filtername));
+		}
+		else
+		{
+			CPrintToChat(client, "{green}[SM]{lightgreen} Everyone in the list was already muted.");
+		}
+	 }
+   }
 }
+
 
 public void unMuteTargetedPlayers(int client, int[] list, int TargetCount, const char[] filtername)
 {
@@ -512,7 +590,16 @@ stock bool IsPlayerAdmin(int client)
 
 stock bool VoiceTeam(int client, int target)
 {
-	if (!sv_full_alltalk.BoolValue)
+	if (CSGO && !sv_full_alltalk.BoolValue)
+	{
+		if (GetClientTeam(client) == GetClientTeam(target))
+		{
+			return true;
+		}
+		return false;
+	}
+	
+	if (CSS && !sv_alltalk.FloatValue)
 	{
 		if (GetClientTeam(client) == GetClientTeam(target))
 		{
