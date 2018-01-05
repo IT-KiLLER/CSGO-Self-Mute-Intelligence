@@ -197,10 +197,20 @@ stock void DisplayMuteMenu(int client)
 
 	for (int target = 1; target <= MaxClients; target++)
 	{	
-		if (IsClientInGame(target) ? (!sv_alltalk.BoolValue && !VoiceTeam(client, target) || !sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) : false) 
+		if (CSGO)
+		{
+		if (IsClientInGame(target) ? (!sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) : false) 
 		{
 			clientAlreadyListed[target] = true; // BOT or not in voiceteam
 		}
+		if (CSS)
+		{
+		if (IsClientInGame(target) ? (!sv_alltalk.FloatValue && !VoiceTeam(client, target) || !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) : false)
+		{
+	     	clientAlreadyListed[target] = true;
+		}
+	}
+}
 	}
 
 	// Sorts who have recently spoken 
@@ -320,6 +330,8 @@ public int MenuHandler_MuteMenu(Menu menu, MenuAction action, int param1, int pa
 
 public void muteTargetedPlayers(int client, int[] list, int TargetCount, const char[] filtername)
 {
+	if (CSGO)
+	{
 	if (TargetCount == 1)
 	{
 		int target = list[0];
@@ -352,13 +364,15 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 		for (int i = 0; i < TargetCount; i++) 
 		{	
 			target = list[i];
-			if (target == client || MuteStatus[client][target] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) || !sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || !sv_alltalk.BoolValue && !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) continue;
+			if (target == client || MuteStatus[client][target] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) || !sv_full_alltalk.BoolValue && !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) continue;
 			countTargets++;
 			MuteStatus[client][target] = true;
 			SetListenOverride(client, target, Listen_No);
 			FormatEx(textNames, sizeof(textNames), "%s%s%N", textNames, countTargets==1 ? "" : ", ",  target);
 			textSize = strlen(textNames) - textSize;
 		}
+		
+	
 		if (countTargets > 0) 
 		{
 			CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted(%d){green}: %s", countTargets , (textSize <= sizeof(textNames) && countTargets <= 14 ) ? textNames : getFilterName(filtername));
@@ -368,7 +382,62 @@ public void muteTargetedPlayers(int client, int[] list, int TargetCount, const c
 			CPrintToChat(client, "{green}[SM]{lightgreen} Everyone in the list was already muted.");
 		}
 	}
+	
+	if (CSS)
+	
+	if (TargetCount == 1)
+	{
+		int target = list[0];
+		if (client == target)
+		{
+			CPrintToChat(client, "{green}[SM]{red} You can not mute yourself.");
+			return;
+		}
+		if (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target))
+		{
+			CPrintToChat(client, "{green}[SM]{red} You can not mute an admin: {lightblue}%N", target);
+			return;
+		}
+		if (VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) 
+		{
+			CPrintToChat(client, "{green}[SM]{red} The client could not be muted: {lightblue}%N", target);
+			return;
+		}
+		SetListenOverride(client, target, Listen_No);
+ 
+		CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted: %N", target);
+		MuteStatus[client][target] = true;
+
+	} 
+	else if (TargetCount > 1)
+	{
+		char textNames[250];
+		int textSize = 0, countTargets = 0;
+		int target;
+		for (int i = 0; i < TargetCount; i++) 
+		{	
+			target = list[i];
+			if (target == client || MuteStatus[client][target] || (sm_selfmute_admin.BoolValue && IsPlayerAdmin(target)) || !sv_alltalk.FloatValue && !VoiceTeam(client, target) || (BOTS && IsFakeClient(target)) ) continue;
+			countTargets++;
+			MuteStatus[client][target] = true;
+			SetListenOverride(client, target, Listen_No);
+			FormatEx(textNames, sizeof(textNames), "%s%s%N", textNames, countTargets==1 ? "" : ", ",  target);
+			textSize = strlen(textNames) - textSize;
+		}
+		
+	
+		if (countTargets > 0) 
+		{
+			CPrintToChat(client, "{green}[SM]{lightgreen} You have self-muted(%d){green}: %s", countTargets , (textSize <= sizeof(textNames) && countTargets <= 14 ) ? textNames : getFilterName(filtername));
+		}
+		else
+		{
+			CPrintToChat(client, "{green}[SM]{lightgreen} Everyone in the list was already muted.");
+		}
+	 }
+   }
 }
+
 
 public void unMuteTargetedPlayers(int client, int[] list, int TargetCount, const char[] filtername)
 {
