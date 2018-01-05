@@ -28,7 +28,7 @@ char clientNames[MAXPLAYERS+1][MAX_NAME_LENGTH];
 
 float clientTalkTime[MAXPLAYERS+1] = { 0.0, ... };
 ConVar sm_selfmute_admin, sm_selfmute_talk_seconds, sm_selfmute_spam_mutes, sv_full_alltalk;
-bool LibraryError, CSGO;
+bool LibraryError;
 
 public Plugin myinfo = 
 {
@@ -61,11 +61,6 @@ public void OnAllPluginsLoaded()
 	if ((LibraryError = !LibraryExists("dhooks")))
 	{
 		SetFailState("An error has occurred with 'dhooks'. The plugin is disabled.");
-	}
-
-	if ((CSGO = (GetEngineVersion() == Engine_CSGO))) 
-	{
-		//  IT'S A CS GO SERVER
 	}
 }
 
@@ -111,13 +106,13 @@ public void OnClientPutInServer(int client)
 	}
 }
 
-public void OnClientSpeakingEx(int client)
+public int OnClientSpeakingEx(int client)
 {
 	if (GetClientListeningFlags(client) == VOICE_MUTED) return;
 	clientTalkTime[client] = GetGameTime();
 }
 
-public void OnClientSpeakingEnd(int client)
+public int OnClientSpeakingEnd(int client)
 {
 	if (GetClientListeningFlags(client) == VOICE_MUTED) return;
 	clientTalkTime[client] = GetGameTime();
