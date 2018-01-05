@@ -43,7 +43,9 @@ public void OnPluginStart()
 {   
 	LoadTranslations("common.phrases");
 	RegConsoleCmd("sm_sm", selfMute, "Mute player by typing !selfmute <name>");
+	RegConsoleCmd("sm_selfmute", selfMute, "Mute player by typing !selfmute <name>");
 	RegConsoleCmd("sm_su", selfUnmute, "Unmute player by typing !su <name>");
+	RegConsoleCmd("sm_selfunmute", selfMute, "unMute player by typing !selfunmute<name>");
 	sm_selfmute_admin = CreateConVar("sm_selfmute_admin", "0.0", "Admin can not be muted. Disabled by default", _, true, 0.0, true, 1.0);
 	sm_selfmute_talk_seconds = CreateConVar("sm_selfmute_talk_seconds", "45.0", "List clients who have recently spoken within x secounds", _, true, 1.0, true, 180.0);
 	sm_selfmute_spam_mutes = CreateConVar("sm_selfmute_spam_mutes", "4.0", "How many mutes a client needs to get listed as spammer.", _, true, 1.0, true, 64.0);
